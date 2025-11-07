@@ -1,5 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { EmpleadoContext } from '../context/EmpleadoContext';
+import EmpleadoForm from '../components/EmpleadoForm';
+import EmpleadoList from '../components/EmpleadoList';
 import * as empleadoApi from '../services/empleadoApi'; // Importamos la API
 
 function HomePage() {

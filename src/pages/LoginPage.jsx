@@ -11,7 +11,7 @@ const simularLoginAPI = (username, password) => {
                 // Si es exitoso, devolvemos los datos del "usuario"
                 resolve({ id: 1, username: 'admin', nombre: 'Administrador' });
             } else {
-                reject(new Error('Credenciales incorrectas. (Prueba: admin/admin123)'));
+                reject(new Error('Credenciales incorrectas. (Prueba: admin/admin)'));
             }
         }, 500); // Simulamos 0.5s de espera
     });

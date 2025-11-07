@@ -2,43 +2,34 @@ import { useState, useContext, useEffect } from 'react';
 import { EmpleadoContext } from '../context/EmpleadoContext';
 import * as empleadoApi from '../services/empleadoApi';
 
-// Estado inicial vacío, coincidiendo con la DB
+// Estado inicial en camelCase
 const formInicial = {
-  NombreCompleto: '',
-  Correo: '',
-  Sueldo: '',
-  FechaContrato: '',
-  Estatus: 'A', // Por defecto es 'Activo'
+  nombreCompleto: '',
+  correo: '',
+  sueldo: '',
+  fechaContrato: '',
+  estatus: 'A',
 };
 
-// Recibe props de HomePage
 function EmpleadoForm({ empleadoAEditar, setEmpleadoAEditar }) {
   const { dispatch } = useContext(EmpleadoContext);
   const [form, setForm] = useState(formInicial);
-  const [errores, setErrores] = useState({}); // Estado para la validación
+  const [errores, setErrores] = useState({});
 
-  // ¡Otro useEffect!
-  // Este se ejecuta CADA VEZ que 'empleadoAEditar' cambia
   useEffect(() => {
     if (empleadoAEditar) {
-      // Si hay un empleado para editar, llenamos el formulario
-      
-      // Tu SP devuelve la fecha como DD/MM/YYYY.
-      // El input <input type="date"> necesita YYYY-MM-DD.
-      // Debemos convertirla.
+      // empleadoAEditar ahora viene en camelCase gracias al traductor
       const fechaParts = empleadoAEditar.fechaContrato.split('/');
       const fechaISO = `${fechaParts[2]}-${fechaParts[1]}-${fechaParts[0]}`;
 
       setForm({
         ...empleadoAEditar,
-        Sueldo: empleadoAEditar.sueldo,
-        FechaContrato: fechaISO, // Usamos la fecha convertida
+        fechaContrato: fechaISO, // Asignamos la fecha formateada
       });
     } else {
-      // Si no, reseteamos el formulario
       setForm(formInicial);
     }
-  }, [empleadoAEditar]); // Depende de 'empleadoAEditar'
+  }, [empleadoAEditar]);
 
   const handleChange = (e) => {
     setForm({
@@ -47,66 +38,59 @@ function EmpleadoForm({ empleadoAEditar, setEmpleadoAEditar }) {
     });
   };
 
-  // ¡Requisito: Formulario con Validación!
   const validarFormulario = () => {
     let nuevosErrores = {};
-    if (!form.NombreCompleto.trim()) {
-      nuevosErrores.NombreCompleto = 'El nombre es obligatorio.';
+    if (!form.nombreCompleto.trim()) {
+      nuevosErrores.nombreCompleto = 'El nombre es obligatorio.';
     }
-    if (!form.Correo.trim()) {
-      nuevosErrores.Correo = 'El correo es obligatorio.';
-    } else if (!/\S+@\S+\.\S+/.test(form.Correo)) { // Regex simple de email
-      nuevosErrores.Correo = 'El formato del correo no es válido.';
+    if (!form.correo.trim()) {
+      nuevosErrores.correo = 'El correo es obligatorio.';
+    } else if (!/\S+@\S+\.\S+/.test(form.correo)) {
+      nuevosErrores.correo = 'El formato del correo no es válido.';
     }
-    if (!form.Sueldo || form.Sueldo <= 0) {
-      nuevosErrores.Sueldo = 'El sueldo debe ser un número positivo.';
+    if (!form.sueldo || form.sueldo <= 0) {
+      nuevosErrores.sueldo = 'El sueldo debe ser un número positivo.';
     }
-    if (!form.FechaContrato) {
-      nuevosErrores.FechaContrato = 'La fecha es obligatoria.';
+    if (!form.fechaContrato) {
+      nuevosErrores.fechaContrato = 'La fecha es obligatoria.';
     }
     setErrores(nuevosErrores);
-    // Retorna 'true' si el objeto de errores está vacío
     return Object.keys(nuevosErrores).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 1. Validar
-    if (!validarFormulario()) {
-      return; // Detiene el envío si hay errores
-    }
+    if (!validarFormulario()) return;
     
-    // Tu SP espera la fecha en formato DD/MM/YYYY
-    // Debemos convertirla de YYYY-MM-DD (del input)
-    const fechaParts = form.FechaContrato.split('-');
+    // Formateamos la fecha para el SP (DD/MM/YYYY)
+    const fechaParts = form.fechaContrato.split('-');
     const fechaFormateada = `${fechaParts[2]}/${fechaParts[1]}/${fechaParts[0]}`;
     
-    // Preparamos los datos a enviar
     const dataAEnviar = {
       ...form,
-      FechaContrato: fechaFormateada,
-      // Convertimos sueldo a número por si acaso
-      Sueldo: parseFloat(form.Sueldo) 
+      fechaContrato: fechaFormateada,
+      sueldo: parseFloat(form.sueldo) 
     };
 
     try {
-      // 2. Comprobar si es Edición o Creación
       if (empleadoAEditar) {
-        // --- LÓGICA DE MODIFICAR (POST) ---
+        // --- LÓGICA DE MODIFICAR ---
         await empleadoApi.updateEmpleado(empleadoAEditar.idEmpleado, dataAEnviar);
-        dispatch({ type: 'UPDATE_EMPLEADO', payload: dataAEnviar });
+        // Despachamos el payload con el ID para que el reducer lo encuentre
+        dispatch({ 
+          type: 'UPDATE_EMPLEADO', 
+          payload: { ...dataAEnviar, idEmpleado: empleadoAEditar.idEmpleado } 
+        });
         alert('Empleado modificado con éxito.');
 
       } else {
-        // --- LÓGICA DE AGREGAR (PUT) ---
+        // --- LÓGICA DE AGREGAR ---
         const nuevoEmpleado = await empleadoApi.createEmpleado(dataAEnviar);
-        // Despachamos el nuevo empleado que nos devolvió la API
         dispatch({ type: 'ADD_EMPLEADO', payload: nuevoEmpleado }); 
         alert('Empleado agregado con éxito.');
       }
       
-      // 3. Limpiar todo
       handleReset();
 
     } catch (error) {
@@ -115,15 +99,14 @@ function EmpleadoForm({ empleadoAEditar, setEmpleadoAEditar }) {
     }
   };
 
-  // Limpia el formulario y quita el modo edición
   const handleReset = () => {
     setForm(formInicial);
     setEmpleadoAEditar(null);
     setErrores({});
   };
 
+  // --- ESTE ES EL JSX 100% CORREGIDO A camelCase ---
   return (
-    // Usamos 'onSubmit' para el <form>
     <form onSubmit={handleSubmit} className="mb-4 p-3 border rounded bg-light">
       <h5 className="mb-3">
         {empleadoAEditar ? 'Editando Empleado' : 'Agregar Nuevo Empleado'}
@@ -132,78 +115,76 @@ function EmpleadoForm({ empleadoAEditar, setEmpleadoAEditar }) {
       <div className="row g-3">
         {/* Nombre Completo */}
         <div className="col-md-6">
-          <label htmlFor="NombreCompleto" className="form-label">Nombre Completo</label>
+          <label htmlFor="nombreCompleto" className="form-label">Nombre Completo</label>
           <input
             type="text"
-            // Bootstrap: 'is-invalid' muestra el error
-            className={`form-control ${errores.NombreCompleto ? 'is-invalid' : ''}`}
-            id="NombreCompleto"
-            name="NombreCompleto"
-            value={form.NombreCompleto}
+            className={`form-control ${errores.nombreCompleto ? 'is-invalid' : ''}`}
+            id="nombreCompleto"
+            name="nombreCompleto"
+            value={form.nombreCompleto}
             onChange={handleChange}
           />
-          {/* Mensaje de error de Bootstrap */}
-          {errores.NombreCompleto && (
-            <div className="invalid-feedback">{errores.NombreCompleto}</div>
+          {errores.nombreCompleto && (
+            <div className="invalid-feedback">{errores.nombreCompleto}</div>
           )}
         </div>
         
         {/* Correo */}
         <div className="col-md-6">
-          <label htmlFor="Correo" className="form-label">Correo</label>
+          <label htmlFor="correo" className="form-label">Correo</label>
           <input
             type="email"
-            className={`form-control ${errores.Correo ? 'is-invalid' : ''}`}
-            id="Correo"
-            name="Correo"
-            value={form.Correo}
+            className={`form-control ${errores.correo ? 'is-invalid' : ''}`}
+            id="correo"
+            name="correo"
+            value={form.correo}
             onChange={handleChange}
           />
-          {errores.Correo && (
-            <div className="invalid-feedback">{errores.Correo}</div>
+          {errores.correo && (
+            <div className="invalid-feedback">{errores.correo}</div>
           )}
         </div>
 
         {/* Sueldo */}
         <div className="col-md-4">
-          <label htmlFor="Sueldo" className="form-label">Sueldo</label>
+          <label htmlFor="sueldo" className="form-label">Sueldo</label>
           <input
             type="number"
-            className={`form-control ${errores.Sueldo ? 'is-invalid' : ''}`}
-            id="Sueldo"
-            name="Sueldo"
-            value={form.Sueldo}
+            className={`form-control ${errores.sueldo ? 'is-invalid' : ''}`}
+            id="sueldo"
+            name="sueldo"
+            value={form.sueldo}
             onChange={handleChange}
           />
-          {errores.Sueldo && (
-            <div className="invalid-feedback">{errores.Sueldo}</div>
+          {errores.sueldo && (
+            <div className="invalid-feedback">{errores.sueldo}</div>
           )}
         </div>
 
         {/* Fecha Contrato */}
         <div className="col-md-4">
-          <label htmlFor="FechaContrato" className="form-label">Fecha Contrato</label>
+          <label htmlFor="fechaContrato" className="form-label">Fecha Contrato</label>
           <input
-            type="date" // Input de calendario
-            className={`form-control ${errores.FechaContrato ? 'is-invalid' : ''}`}
-            id="FechaContrato"
-            name="FechaContrato"
-            value={form.FechaContrato}
+            type="date"
+            className={`form-control ${errores.fechaContrato ? 'is-invalid' : ''}`}
+            id="fechaContrato"
+            name="fechaContrato"
+            value={form.fechaContrato}
             onChange={handleChange}
           />
-          {errores.FechaContrato && (
-            <div className="invalid-feedback">{errores.FechaContrato}</div>
+          {errores.fechaContrato && (
+            <div className="invalid-feedback">{errores.fechaContrato}</div>
           )}
         </div>
 
         {/* Estatus */}
         <div className="col-md-4">
-          <label htmlFor="Estatus" className="form-label">Estatus</label>
+          <label htmlFor="estatus" className="form-label">Estatus</label>
           <select 
             className="form-select" 
-            id="Estatus"
-            name="Estatus"
-            value={form.Estatus}
+            id="estatus"
+            name="estatus"
+            value={form.estatus}
             onChange={handleChange}
           >
             <option value="A">Activo</option>
@@ -217,7 +198,6 @@ function EmpleadoForm({ empleadoAEditar, setEmpleadoAEditar }) {
         <button className="btn btn-primary" type="submit">
           {empleadoAEditar ? 'Guardar Cambios' : 'Agregar Empleado'}
         </button>
-        {/* El 'type="button"' es importante para que no envíe el form */}
         <button 
           className="btn btn-secondary ms-2" 
           type="button"
