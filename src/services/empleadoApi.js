@@ -1,7 +1,6 @@
-const API_URL = 'http://localhost:5066/api/Empleado';
+const API_URL = 'http://localhost:5066/api/Empleado'; // <-- ¡Ya tienes el puerto correcto!
 
 // --- FUNCIONES DE TRADUCCIÓN ---
-// Convierte de API (PascalCase) a App (camelCase)
 const apiToApp = (empleadoApi) => {
   if (!empleadoApi) return null;
   return {
@@ -14,10 +13,9 @@ const apiToApp = (empleadoApi) => {
   };
 };
 
-// Convierte de App (camelCase) a API (PascalCase)
 const appToApi = (empleadoApp) => {
   return {
-    // No incluimos idEmpleado en el body, usualmente va en la URL o es 0
+    IDEMPLEADO: empleadoApp.idEmpleado || 0, // Incluimos el ID
     NOMBRECOMPLETO: empleadoApp.nombreCompleto,
     CORREO: empleadoApp.correo,
     SUELDO: empleadoApp.sueldo,
@@ -26,7 +24,7 @@ const appToApi = (empleadoApp) => {
   };
 };
 
-// --- SERVICIOS API (AHORA CON TRADUCCIÓN) ---
+// --- SERVICIOS API (CORREGIDOS) ---
 
 export const getEmpleados = async () => {
   const response = await fetch(API_URL);
@@ -34,46 +32,39 @@ export const getEmpleados = async () => {
     throw new Error('Error al obtener los empleados');
   }
   const dataApi = await response.json();
-  // ¡Traducimos la respuesta a camelCase!
   return dataApi.map(apiToApp);
 };
 
 export const createEmpleado = async (empleadoApp) => {
-  // 1. Traducimos de React (camel) a la API (Pascal)
   const empleadoApi = appToApi(empleadoApp);
 
+  // CORRECCIÓN: Tu backend espera POST para Crear
   const response = await fetch(API_URL, {
-    method: 'PUT', // Tu regla: PUT para crear
+    method: 'POST', // <-- CORREGIDO (antes era PUT)
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(empleadoApi), // 2. Enviamos el objeto en PascalCase
+    body: JSON.stringify(empleadoApi),
   });
   if (!response.ok) {
     throw new Error('Error al crear el empleado');
   }
-  const nuevoEmpleadoApi = await response.json();
-  // 3. Traducimos la respuesta de la API a camelCase para React
+  const nuevoEmpleadoApi = await response.json(); 
   return apiToApp(nuevoEmpleadoApi);
 };
 
 export const updateEmpleado = async (idEmpleado, empleadoApp) => {
-  // 1. Traducimos de React (camel) a la API (Pascal)
-  const empleadoApi = appToApi(empleadoApp);
-  
-  // Agregamos el ID que espera el SP
-  const dataAEnviar = {
-    ...empleadoApi,
-    IDEMPLEADO: idEmpleado 
-  };
+  // Tu backend espera el ID dentro del objeto, no en la URL
+  const empleadoApi = appToApi({ ...empleadoApp, idEmpleado });
 
-  const response = await fetch(`${API_URL}/${idEmpleado}`, {
-    method: 'POST', // Tu regla: POST para modificar
+  // CORRECCIÓN: Tu backend espera PUT para Editar y sin ID en la URL
+  const response = await fetch(API_URL, { // <-- CORREGIDO (URL base)
+    method: 'PUT', // <-- CORREGIDO (antes era POST)
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(dataAEnviar), // 2. Enviamos el objeto en PascalCase
+    body: JSON.stringify(empleadoApi),
   });
   if (!response.ok) {
     throw new Error('Error al actualizar el empleado');
   }
-  return response.ok; // El update no devuelve contenido
+  return response.ok;
 };
 
 export const deleteEmpleado = async (idEmpleado) => {
@@ -83,5 +74,5 @@ export const deleteEmpleado = async (idEmpleado) => {
   if (!response.ok) {
     throw new Error('Error al eliminar el empleado');
   }
-  return response.ok; // El delete no devuelve contenido
+  return response.ok;
 };
